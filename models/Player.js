@@ -11,6 +11,7 @@ export class Player {
         this.id = id;
         this.roomEmitter = roomEmitter;
         this.indexSectionInPool = 0;
+        isPlayerDisconnect = false;
 
         this.#handleSubscriptions(true);
         this.changeState(PlayerState.Ready);
@@ -22,10 +23,11 @@ export class Player {
     roomEmitter = null;
     score = 0;
 
-    playerState = null;
+    state = null;
 
     puzzleStorage = new PuzzleStorage();
     gameField = new GameField();
+    isPlayerDisconnect = null;
 
     #handleSubscriptions = (isOn) => {
         this.ws.onerror = isOn
@@ -55,6 +57,12 @@ export class Player {
 
             this.roomEmitter.emit(RoomEvents.CHANGE_PLAYER_STATE, this, state);
         }
+    }
+
+    updateWS = (ws) => {
+        this.ws = ws;
+
+        this.#handleSubscriptions(true);
     }
 
     #setPuzzle = async (puzzle) => {
@@ -92,8 +100,7 @@ export class Player {
                     const isBreakPlaying = puzzlesInStorage.every(puzzle => !!!puzzle.possiblePositions.length) 
 
                     if (isBreakPlaying) { 
-                        this.changeState(PlayerState.Finished)
-                        console.log('finish');
+                        this.changeState(PlayerState.Finished);
                     }
 
                 }
@@ -111,6 +118,8 @@ export class Player {
     }
     
     #onMessage = (event) => {
+        if (this.state === PlayerState.Finished) return
+
         const obj = JSON.parse(event.data);
         const type = obj.type;
         const params = obj.params;
@@ -128,5 +137,8 @@ export class Player {
     
     #onClose = (event) => {
         console.log(`close ws playerID: ${this.id}`);
+        this.isPlayerDisconnect = true;
+
+        this.#handleSubscriptions(false);
     }
 }
